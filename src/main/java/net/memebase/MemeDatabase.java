@@ -53,13 +53,15 @@ public class MemeDatabase {
 	@GET
 	@Path( "/posts/{id}/comments" )
 	public Response GetCommentIndex( @PathParam("id") int id ) {
+		if( locked ) return Response.status( 500 ).build();
 		return Response.ok ( new IndexResponse( posts.get( id ).commentIndex ) ).build();
 	}
 
 	@GET
 	@Path( "/posts/{postId}/comments/{commentId}" )
 	public Response GetComment( @PathParam("postId") int postId, @PathParam("commentId") int commentId ) {
-		try { return Response.ok( mainMapper.writeValueAsString( posts.get( postId ).comments.get( postId ) ) ).build(); }
+		if( locked ) return Response.status( 500 ).build();
+		try { return Response.ok( mainMapper.writeValueAsString( posts.get( postId ).comments.get( commentId ) ) ).build(); }
 		catch (JsonProcessingException exception) {return Response.status( 400, "Bad JSON or unknown processing error." ).build();}
 	}
 
@@ -83,6 +85,7 @@ public class MemeDatabase {
 	@POST
 	@Path( "/posts/{id}/comments/" )
 	public Response PostComment( @PathParam( "id" ) int id, String submissionJson ) {
+		if( locked ) return Response.status( 500 ).build();
 		try {
 			Post selectedPost = posts.get(id);
 			if ( selectedPost == null ) { return Response.status( 400, "Unknown post or other error" ).build(); }

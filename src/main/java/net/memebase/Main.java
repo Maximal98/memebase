@@ -14,14 +14,14 @@ import java.util.ArrayList;
 import java.util.Scanner;
 
 public class Main {
-	// TODO: json is a bad database format because we will be practically unable to write continuously
-	// We would have to shift around huge amounts of data
-	// lets say a database has 2000 posts.
-	// if a user were to write a comment to post 3
-	// All 1997 Posts after it would have to be shifted down
-	// which would create horrible lag, which would over time desynchronise
-	// the in memory db and the db on disk
-	// or make the database only usable for ~10 users concurrently
+	/* TODO: json is a bad database format because we will be practically unable to write continuously
+	 * We would have to shift around huge amounts of data
+	 * lets say a database has 2000 posts.
+	 * if a user were to write a comment to post 3
+	 * All 1997 Posts after it would have to be shifted down
+	 * which would create horrible lag, which would over time desynchronise
+	 * the in memory db and the db on disk
+	 * or make the database only usable for ~10 users concurrently */
 	public static void main(String[] args) {
 		File databaseFile = new File( "Database.json" );
 		MemeDatabase MainDB = null;
@@ -33,6 +33,7 @@ public class Main {
 			ObjectMapper loadMapper = new ObjectMapper();
 			String databaseString = "";
 			try {
+				//TODO: isn't there some new high-tech java 17 implementation of this or whatever
 				FileReader databaseReader = new FileReader( databaseFile );
 				char[] characters = new char[(int) databaseFile.length()];
 				databaseReader.read( characters );
@@ -72,6 +73,7 @@ public class Main {
 					System.out.println("Shutting down server.");
 					// TODO: Lock up before dumping DB
 					// TODO: Continuous writing to disk
+					MainDB.Lock();
 					try ( FileWriter databaseWriter = new FileWriter( databaseFile ) ) {
 						String dumpString = MainDB.Dump();
 						if( !( dumpString.equals( "error!" ) ) ) databaseWriter.write( dumpString );
@@ -79,13 +81,16 @@ public class Main {
 					}
 					catch ( IOException exception ) {
 						exception.printStackTrace();
-						System.out.println( "\n\n-------------------------------------" );
-						System.out.println( "COULD NOT WRITE THE DATABASE TO DISK." );
-						System.out.println( "-------------------------------------\n\n" );
+						System.out.println("""
 
-						System.out.println( "The database write has failed." );
-						System.out.println( "Please start a debugger on the server to view the contents of the database in memory" );
-						System.out.println( "The program will now lock up to allow you more time to view its memory." );
+								-------------------------------------
+								COULD NOT WRITE THE DATABASE TO DISK.
+								-------------------------------------
+
+								The database write has failed.
+								Please start a debugger on the server to view the contents of the database in memory
+								The program will now lock up to allow you more time to view its memory.
+								""");
 						while ( true ) { //TODO: this causes a warn, is there any other way to lock up the JVM?
 							try {
 								Thread.currentThread().wait(1000000);

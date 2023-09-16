@@ -103,9 +103,13 @@ public class MemeDatabase {
 		try { return mainMapper.writeValueAsString( this ); }
 		catch( JsonProcessingException exception ) {
 			exception.printStackTrace();
-			System.out.println( "\n\n---------------------------------------------------" );
-			System.out.println( "COULD NOT PARSE DATABASE. CHANGES CAN NOT BE SAVED." );
-			System.out.println( "---------------------------------------------------\n\n" );
+			System.out.println("""
+					
+					---------------------------------------------------
+					COULD NOT PARSE DATABASE. CHANGES CAN NOT BE SAVED.
+					---------------------------------------------------
+					
+					""" );
 		}
 		return "error!";
 	}

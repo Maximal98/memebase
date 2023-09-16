@@ -71,9 +71,8 @@ public class Main {
 				// TODO: accept remote connections through SSH tunneled plaintext or some shit.
 				case "stop" -> {
 					System.out.println("Shutting down server.");
-					// TODO: Lock up before dumping DB
 					// TODO: Continuous writing to disk
-					MainDB.Lock();
+					server.stop();
 					try ( FileWriter databaseWriter = new FileWriter( databaseFile ) ) {
 						String dumpString = MainDB.Dump();
 						if( !( dumpString.equals( "error!" ) ) ) databaseWriter.write( dumpString );
@@ -101,13 +100,13 @@ public class Main {
 					}
 
 					System.out.println( "Database written successfully." );
-					server.stop();
+					server.destroy();
 					running = false;
-					// TODO: server has strange behaviour where it has to be terminated when it stops because it hangs after writing the database
 				}
 				case "dump" -> System.out.println( MainDB.Dump() );
 				default -> System.out.println("Unknown command.");
 			}
 		}
+		System.exit(0); // TODO: hitting the end of main does not shut down the server
 	}
 }

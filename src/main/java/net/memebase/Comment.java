@@ -11,4 +11,10 @@ public class Comment {
 		poster = newPoster;
 		text = newText;
 	}
+	public Comment() {
+		id = 0;
+		post = 0;
+		poster = 0;
+		text = "";
+	}
 }

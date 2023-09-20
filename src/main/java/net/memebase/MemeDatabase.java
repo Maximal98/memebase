@@ -10,7 +10,6 @@ import net.memebase.Auth.AuthToken;
 import net.memebase.Auth.LoginSubmission;
 import net.memebase.Auth.User;
 import org.apache.cxf.jaxrs.ext.multipart.Multipart;
-import org.apache.cxf.message.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -171,7 +170,7 @@ public class MemeDatabase {
 				passwordBuilder.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
 			}
 
-			if( user.hashedPassword.equals( passwordBuilder ) ) { //TODO: this returns false always says my IDE
+			if( user.hashedPassword.contentEquals( passwordBuilder ) ) { //TODO: this returns false always says my IDE
 				AuthToken token = new AuthToken();
 				token.associatedUser = id;
 				token.genUnique();

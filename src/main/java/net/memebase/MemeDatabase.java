@@ -3,7 +3,11 @@ package net.memebase;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.*;
+import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.apache.cxf.jaxrs.ext.multipart.Multipart;
+
+import java.io.InputStream;
 import java.util.ArrayList;
 
 @Produces( "application/json" )
@@ -66,18 +70,28 @@ public class MemeDatabase {
 	}
 
 	@POST
+	@Consumes( { MediaType.MULTIPART_FORM_DATA } )
 	@Path( "/posts/" )
-	public Response PublishPost( String submissionJson ) {
+	public Response PublishPost(
+			@Multipart(value = "img",type="image/png") InputStream imageStream,
+			@Multipart(value = "submission",type="application/json") String submissionJson
+	) {
 		if( locked ) return Response.status( 500 ).build();
 		// TODO: if i implemented a macro ( eg "public Response ServerError() { return ...status(500).. } " ) would java optimize it away?
 		// because it would be convenient to just be able to call "ResponsePresets.ServerError()" instead of this
 		// if java didn't optimize it away, it would be causing unnecessary processing
-		postIndex++;
+
+		//  16777216 (16MiB) for video data
+		// if( image.length > 8388608 ) {
+		//	return Response.status( 400, "Image data too large." ).build();
+		// }
+		// TODO: image logic does not exist
 		PostSubmission submission;
 		try { submission = mainMapper.readValue( submissionJson, PostSubmission.class ); }
 		catch ( JsonProcessingException exception ) {
 			return Response.status( 400, "Bad JSON or unknown processing error." ).build();
 		}
+		postIndex++;
 		posts.add( new Post( postIndex, 0, submission.title, submission.tags ) );
 		return Response.status( 201, "Post published." ).build();
 	}

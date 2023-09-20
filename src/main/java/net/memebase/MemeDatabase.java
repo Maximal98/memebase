@@ -5,9 +5,20 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import net.memebase.Auth.AccountCreationData;
+import net.memebase.Auth.AuthToken;
+import net.memebase.Auth.LoginSubmission;
+import net.memebase.Auth.User;
 import org.apache.cxf.jaxrs.ext.multipart.Multipart;
+import org.apache.cxf.message.Message;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 
 @Produces( "application/json" )
@@ -15,19 +26,16 @@ import java.util.ArrayList;
 public class MemeDatabase {
 	public int postIndex;
 	public ArrayList<Post> posts;
+	public int userIndex;
+	public ArrayList<User> users;
 
 	private final ObjectMapper mainMapper;
 	private boolean locked;
-	public MemeDatabase( int newPostIndex, ArrayList<Post> newPosts ) {
-		postIndex = newPostIndex;
-		posts = newPosts;
-		mainMapper = new ObjectMapper();
-		locked = false;
-	}
-
+	private final Logger logger;
 	public MemeDatabase () {
 		mainMapper = new ObjectMapper();
 		locked = false;
+		logger = LoggerFactory.getLogger( Main.class );
 	}
 	@GET
 	@Path( "/" )
@@ -70,8 +78,8 @@ public class MemeDatabase {
 	}
 
 	@POST
-	@Consumes( { MediaType.MULTIPART_FORM_DATA } )
 	@Path( "/posts/" )
+	@Consumes( { MediaType.MULTIPART_FORM_DATA } )
 	public Response PublishPost(
 			@Multipart(value = "img",type="image/png") InputStream imageStream,
 			@Multipart(value = "submission",type="application/json") String submissionJson
@@ -93,6 +101,7 @@ public class MemeDatabase {
 		}
 		postIndex++;
 		posts.add( new Post( postIndex, 0, submission.title, submission.tags ) );
+		logger.info( "Created post {}", postIndex );
 		return Response.status( 201, "Post published." ).build();
 	}
 
@@ -107,10 +116,75 @@ public class MemeDatabase {
 			selectedPost.commentIndex++;
 			selectedPost.comments.add( new Comment( selectedPost.commentIndex, selectedPost.id, 0, submission.text ) );
 			posts.set( id, selectedPost );
+			logger.info( "Created comment number {} for Post {}.", selectedPost.commentIndex, postIndex);
 			return Response.ok().build();
 		}
 		catch (JsonProcessingException exception)
 		{return Response.status(400, "Bad JSON or unknown processing error." ).build();}
+	}
+
+	// TODO: Login
+	@POST
+	@Path( "/users/{id}/" )
+	public Response CreateAccount( @PathParam( "id" ) int id, String jsonCreationData ) {
+		try {
+			AccountCreationData creationData = mainMapper.readValue(jsonCreationData, AccountCreationData.class);
+			User newUser = new User();
+			userIndex++;
+			newUser.id = userIndex;
+			newUser.name = creationData.name;
+			MessageDigest mainDigest = MessageDigest.getInstance( "SHA3-384" );
+			SecureRandom random = new SecureRandom();
+			byte[] salt = new byte[8];
+			random.nextBytes( salt );
+			mainDigest.update( salt );
+
+			byte[] bytes = mainDigest.digest(creationData.password.getBytes(StandardCharsets.UTF_8));
+			StringBuilder passwordBuilder = new StringBuilder();
+			for (byte aByte : bytes) {
+				passwordBuilder.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
+			}
+
+			newUser.hashedPassword = passwordBuilder.toString();
+			newUser.salt = salt;
+			users.add( userIndex, newUser );
+		}
+		catch ( JsonProcessingException exception )
+		{ return Response.status(400, "Bad JSON or unknown processing error." ).build();}
+		catch ( NoSuchAlgorithmException exception )
+		{ return Response.status( 500, "Unknown hashing algorithm" ).build(); }
+		return Response.ok().build();
+	}
+
+	@POST
+	@Path( "/users/{id}/login/" )
+	public Response LogIntoAccount( @PathParam( "id" ) int id, String jsonLoginData ) {
+		try {
+			LoginSubmission loginData = mainMapper.readValue( jsonLoginData, LoginSubmission.class );
+			User user = users.get( id );
+			MessageDigest mainDigest = MessageDigest.getInstance( "SHA3-384" );
+			mainDigest.update( user.salt );
+
+			byte[] bytes = mainDigest.digest( loginData.password.getBytes(StandardCharsets.UTF_8) );
+			StringBuilder passwordBuilder = new StringBuilder();
+			for (byte aByte : bytes) {
+				passwordBuilder.append(Integer.toString((aByte & 0xff) + 0x100, 16).substring(1));
+			}
+
+			if( user.hashedPassword.equals( passwordBuilder ) ) { //TODO: this returns false always says my IDE
+				AuthToken token = new AuthToken();
+				token.associatedUser = id;
+				token.genUnique();
+				user.validTokens.add( token );
+				return Response.ok( mainMapper.writeValueAsString( token ) ).build();
+			} else {
+				return Response.status( 401, "Invalid password." ).build();
+			}
+		}
+		catch ( JsonProcessingException exception )
+		{ return Response.status( 400, "Bad JSON or unknown processing error." ).build(); }
+		catch ( NoSuchAlgorithmException exception )
+		{ return Response.status( 500, "Unknown hashing algorithm" ).build(); }
 	}
 
 	public String Dump() {

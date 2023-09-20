@@ -27,7 +27,9 @@ public class Main {
 		MemeDatabase MainDB = null;
 		if( databaseFile.length() == 0 ) {
 			System.out.println( "Database does not exist. creating it..." );
-			MainDB = new MemeDatabase( -1, new ArrayList<>() );
+			MainDB = new MemeDatabase();
+			MainDB.postIndex = -1;
+			MainDB.posts = new ArrayList<>();
 		} else {
 			System.out.println( "Database file exists, attempting to load it." );
 			ObjectMapper loadMapper = new ObjectMapper();
@@ -72,6 +74,7 @@ public class Main {
 				case "stop" -> {
 					System.out.println("Shutting down server.");
 					// TODO: Continuous writing to disk
+					MainDB.Lock();
 					server.stop();
 					try ( FileWriter databaseWriter = new FileWriter( databaseFile ) ) {
 						String dumpString = MainDB.Dump();
